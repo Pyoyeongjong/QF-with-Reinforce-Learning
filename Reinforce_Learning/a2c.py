@@ -105,7 +105,6 @@ class A2Cagent:
         with tf.GradientTape() as tape:
             td_hat = self.critic.model(states, training=True)
             loss = tf.reduce_mean(tf.square(td_targets - td_hat))  # q - td_targets 을 통해 loss 계산
-
         grads = tape.gradient(loss, self.critic.model.trainable_variables)  # loss로 gradient 계산
         # Gradient Cliping
         # grads = [(tf.clip_by_value(grad, -1.0, 1.0)) for grad in grads]
@@ -120,6 +119,7 @@ class A2Cagent:
 
         grads = tape.gradient(loss, self.actor.model.trainable_variables)
         # Gradient Cliping
-        grads = [(tf.clip_by_value(grad, -1.0, 1.0)) for grad in grads]
         self.actor_opt.apply_gradients(zip(grads, self.actor.model.trainable_variables))
 
+if __name__ == '__main__':
+    agent = A2Cagent()

@@ -4,8 +4,10 @@ import time
 import os
 import math
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
+import parameter
 
-BASE_DIR = os.path.expanduser("~/QF-with-Reinforce-Learning/Reinforce_Learning")
+BASE_DIR = parameter.BASE_DIR
+DEBUG = False
 
 # Min-Max Scaling
 scaler_minmax = MinMaxScaler()
@@ -14,15 +16,13 @@ scaler_minmax = MinMaxScaler()
 z_cols = ['openp', 'highp', 'lowp', 'closep',
           'sma5p', 'sma10p', 'sma20p', 'sma40p', 'sma60p','sma90p','sma120p', 'ema5p', 'ema20p','ema60p','ema120p','volp',
           'upperbandp', 'lowerbandp', 'atr', 'cci', 'adx']
-
 ## min_max cols
 min_max_cols = ['rsi']
 
 # 04.20 volp는 원래 없어야 해
 drop_list = ['open', 'high', 'low', 'close', 'volume', 'sma10p', 'sma40p', 'sma90p', 'ema5p', 'ema20p','ema60p','ema120p']
-
 # 시작연도
-START_YEAR = 2018
+START_YEAR = parameter.START_YEAR
 
 class Data:
     def __init__(self):
@@ -49,12 +49,10 @@ class Data:
         self.data_1d_var = None
         self.data_4h_var = None
         self.data_1h_var = None
+        self.data_15m_var = None
 
         # 제공하는 데이터 시간 단위
-        self.time_frames = [
-            '1w', '1d', '4h', '1h'
-            #'15m', '5m', '1m'
-        ]
+        self.time_frames = parameter.TIMEFRAMES
         self.data_attributes = [f"data_{tf}" for tf in self.time_frames]
 
     def load_data(self, ticker, test=False):
@@ -62,7 +60,7 @@ class Data:
         if test:
             path = os.path.join(BASE_DIR, 'candle_datas_test')
         else:
-            path = os.path.join(BASE_DIR, 'candle_datas')
+            path = os.path.join(BASE_DIR, 'candles_sub_data')
         for tf in self.time_frames:
             file_path = os.path.join(path, f"{ticker}_{tf}_sub.csv")
             if os.path.exists(file_path):
@@ -108,6 +106,7 @@ class Data:
     def z_norm(self):
         start = time.time()
         for attr in self.data_attributes:
+            print(attr)
             data = getattr(self, attr)
             data.replace([np.inf, -np.inf], 0, inplace=True)
             
@@ -157,11 +156,11 @@ class Data:
 
     def get_datas(self):
         # return 값은 list
-        return [self.data_1w, self.data_1d, self.data_4h, self.data_1h]
+        return [getattr(self, f"data_{tf}") for tf in self.time_frames]
     
     def get_obs_datas(self):
         # return 값은 list
-        return [self.data_1w_obs, self.data_1d_obs, self.data_4h_obs, self.data_1h_obs]
+        return [getattr(self, f"data_{tf}_obs") for tf in self.time_frames]
     
     def get_obs_datas_len(self):
         obs_data_len = 0
@@ -193,8 +192,7 @@ class Data:
 if __name__ == '__main__':
     data = Data()
     data.load_train_data("BTCUSDT")
-
-
+    data.load_train_data("ETHUSDT")
 
 
 

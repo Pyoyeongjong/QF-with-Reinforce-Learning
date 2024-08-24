@@ -14,8 +14,9 @@ import os
 import csv
 # minmax scaler
 from sklearn.preprocessing import MinMaxScaler
+import parameter
 
-BASE_DIR = os.path.expanduser("~/QF-with-Reinforce-Learning/Reinforce_Learning")
+BASE_DIR = parameter.BASE_DIR
 KLINE_INTERVAL_MAPPING = {
     "1w": Client.KLINE_INTERVAL_1WEEK,
     "1d": Client.KLINE_INTERVAL_1DAY,
@@ -26,17 +27,12 @@ KLINE_INTERVAL_MAPPING = {
     # "1m": Client.KLINE_INTERVAL_1MINUTE,
 }
 
-test_tickers = ["ETCUSDT", "LINKUSDT", "SOLUSDT"]
-tickers = ["BTCUSDT","ETHUSDT", "BNBUSDT", "XRPUSDT",
-        "TONUSDT", "DOGEUSDT", "TRXUSDT", "ADAUSDT", "AVAXUSDT",
-        "WBTCUSDT", "SHIBUSDT", "DOTUSDT","BCHUSDT",
-        "DAIUSDT", "MATICUSDT", "LTCUSDT", "NEARUSDT", "UNIUSDT",
-        "ICPUSDT", "PEPEUSDT", "APTUSDT", "WBETHUSDT", "XLMUSDT",
-        "FETUSDT", "STXUSDT", "FILUSDT", "SUIUSDT"]
+test_tickers = parameter.test_tickers
+tickers = parameter.tickers
 # Scaler
 scaler = MinMaxScaler()
 # API 파일 경로
-api_key_file_path = "api.txt"
+api_key_file_path = os.path.join(BASE_DIR, "api.txt")
 # 클라이언트 변수
 _client = None
 
@@ -151,12 +147,14 @@ def get_candle_subdatas(candles):
     for period in sma_periods:
         sma = talib.SMA(close, timeperiod=period)
         sma_cols[f'sma{period}p'] = calculate_percentage(pd.Series(sma), candles['close'])
+        sma_cols[f'sma{period}p'].name = f"sma{period}p"
 
     ema_periods = [5, 20, 60, 120]
     ema_cols = {}
     for period in ema_periods:
         ema = talib.EMA(close, timeperiod=period)
         ema_cols[f'ema{period}p'] = calculate_percentage(pd.Series(ema), candles['close'])
+        ema_cols[f'ema{period}p'].name = f"ema{period}p"
 
     rsi = pd.Series(talib.RSI(close, timeperiod=14), name="rsi").fillna(0)
     volume_sma = (pd.Series(talib.SMA(volume, timeperiod=20), name="vol_sma") / candles['volume']).replace([np.inf, -np.inf], 0).fillna(0)
@@ -189,16 +187,15 @@ def get_candle_subdatas(candles):
 def get_subdatas(tickers):
     for ticker in tickers:
         for key in KLINE_INTERVAL_MAPPING.keys():
-            if key == '15m':
+            print(f"making {ticker}_{key}..")
+            file_path = os.path.join(BASE_DIR, f"candles_data/{ticker}_{key}.csv")
+            df = pd.read_csv(file_path)
+            if df.empty:
                 continue
-            else:
-                print(f"making {ticker}_{key}..")
-                df = pd.read_csv(f"{ticker}_{key}.csv")
-                if df.empty:
-                    continue
-                df_sub = get_candle_subdatas(df)
-                if df_sub is not None:
-                    df_sub.to_csv(f"{ticker}_{key}_sub.csv")
+            df_sub = get_candle_subdatas(df)
+            if df_sub is not None:
+                new_file_path = os.path.join(BASE_DIR, f"candles_sub_data/{ticker}_{key}_sub.csv")
+                df_sub.to_csv(new_file_path)
 
 def get_subdata_one():
     
@@ -213,9 +210,9 @@ if __name__ == '__main__':
     create_client()
     get_usdt_balance(_client, True)
 
-    for ticker in tickers:
-        get_all_candle_datas_to_csv(ticker, "1 Jan, 2017", "31 Jul, 2024")
-    # get_subdatas(tickers)
+    # for ticker in tickers:
+    #     get_all_candle_datas_to_csv(ticker, "1 Jan, 2017", "31 Jul, 2024")
+    get_subdatas(tickers)
 
 
     

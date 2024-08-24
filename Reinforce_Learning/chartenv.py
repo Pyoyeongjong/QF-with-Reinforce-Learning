@@ -5,29 +5,23 @@ import pandas as pd
 from data import Data
 import time
 from collections import deque
+from datetime import datetime
+import parameter
 
-LONG_TRANS_FEE = 0.1 * 0.01
-SHORT_TRANS_FEE = 0.04 * 0.01
+DEBUG = False
+TIMEDEBUG = False
 
-test_tickers = ["ETCUSDT", "LINKUSDT", "SOLUSDT"]
-tickers = ["BTCUSDT","ETHUSDT", "BNBUSDT", "XRPUSDT",
-        "TONUSDT", "DOGEUSDT", "TRXUSDT", "ADAUSDT", "AVAXUSDT",
-        "WBTCUSDT", "SHIBUSDT", "DOTUSDT","BCHUSDT",
-        "DAIUSDT", "MATICUSDT", "LTCUSDT", "NEARUSDT", "UNIUSDT",
-        "ICPUSDT", "PEPEUSDT", "APTUSDT", "WBETHUSDT", "XLMUSDT",
-        "FETUSDT", "STXUSDT", "FILUSDT", "SUIUSDT"]
+LONG_TRANS_FEE = parameter.LONG_TRANS_FEE
+SHORT_TRANS_FEE = parameter.SHORT_TRANS_FEE
+
+test_tickers = parameter.test_tickers
+tickers = parameter.tickers
 
 # 파라미터
-HOLD_REWARD = 0.01
-
-def get_long_sl(position):
-    return position * 0.9
-def get_short_sl(position):
-    return position * 1.1
+HOLD_REWARD = parameter.HOLD_REWARD
 
 # Last Row Index -> get_next_obs 함수 최적화를 위해
 lri = {}
-
 # lri 초기화
 def init_lri():
     lri.clear() # 초기화
@@ -42,7 +36,7 @@ class ChartTradingEnv(gym.Env):
         self.tickers = tickers
         self.ticker_done = False # ticker 교체를 해야 하는가?
         self.datas = Data()
-        self.datas.load_data(self.tickers[self.curr_ticker]) # test용
+        self.datas.load_train_data(self.tickers[self.curr_ticker]) # test용
         self.budget = budget
         self.initial_budget = budget
         super(ChartTradingEnv, self).__init__()
@@ -56,7 +50,10 @@ class ChartTradingEnv(gym.Env):
         self.time_steps = time_steps # 0 이면 DNN 쓰는 거임.
         if time_steps > 0:
             self.lstm_obs = deque(maxlen=time_steps)
-        print("[BitcoinTradingEnv]: Env init OK")
+        if DEBUG:
+            print("[BitcoinTradingEnv]: Env init OK")
+
+        self.init = True
         
 
     # 현재 ticker가 끝났는지 확인하는 함수
@@ -80,11 +77,11 @@ class ChartTradingEnv(gym.Env):
         if self.ticker_is_done():
             return None, None
 
-        # start = time.time()
+        start = time.time()
         timestamp = [604800, 86400, 14400, 3600, 900, 300, 60] * 1000
         ohlcv_list = ['open', 'high', 'low', 'close', 'volume'] # OHLCV
         datas = self.datas.get_obs_datas()
-        curr_time = self.datas.data_1h.loc[self.curr, 'time'] # 1m
+        curr_time = self.datas.data_15m.loc[self.curr, 'time'] # 1m
         rows_list = []
 
         for data_loc, data in enumerate(datas):
@@ -105,14 +102,19 @@ class ChartTradingEnv(gym.Env):
                         return None, None
 
                 # row보다 1m time + 시간프레임이 크다면 index += 1
-                if (lri[data_loc] < len(data) - 1 and 
+                if (lri[data_loc] < len(data) - 1 and
                     curr_time - data.loc[lri[data_loc], 'time'] >= timestamp[data_loc] * 2):
                     lri[data_loc] += 1
 
             if lri[data_loc] > 0:
+                if DEBUG:
+                    print(datetime.fromtimestamp(int(data.iloc[lri[data_loc]-1]['time'])/1000))
                 row = data.iloc[lri[data_loc]-1].drop("time").values
             else:
                 row = np.zeros(len(data.columns) - 1)  # 기본값으로 채움
+
+            # Debug
+            # print(datetime.fromtimestamp(int(row['time'])/1000))
 
             rows_list.append(row)
 
@@ -127,14 +129,17 @@ class ChartTradingEnv(gym.Env):
         ohlcv = self.get_curr_ohlcv(ohlcv_list)
 
         if self.time_steps == 0:
-            # print("get_next_obs() exec time=",time.time() - start)
+            if DEBUG:
+                print("")
+            if TIMEDEBUG:
+                print(f"get_next_row_obs(): takes time{time.time()-start}")
             return ohlcv, rows
         else: # LSTM 용 Next_OBS
             self.lstm_obs.append(rows)
             if len(self.lstm_obs) < self.time_steps:
                 ohlcv, state = self.get_next_row_obs()
-            # print(ohlcv, self.lstm_obs)
-            # print("get_next_obs() exec time=",time.time() - start)
+            if TIMEDEBUG:
+                print(f"get_next_row_obs(): takes time{time.time()-start}")
             return ohlcv, self.lstm_obs
 
 
@@ -171,8 +176,8 @@ class ChartTradingEnv(gym.Env):
             else:
                 percent = percent - LONG_TRANS_FEE
         # 청산가 계산
-        long_sl = get_long_sl(position)
-        short_sl = get_short_sl(position)
+        long_sl = parameter.get_long_sl(position)
+        short_sl = parameter.get_short_sl(position)
         # 강제 청산
         if ohlcv['low'] < long_sl and short == False: # 롱 청산 
             percent = self.cal_percent(position, long_sl)
@@ -190,12 +195,15 @@ class ChartTradingEnv(gym.Env):
 
     def reset(self, test):
 
-        if self.curr_ticker >= len(tickers) - 1:
-            self.curr_ticker = 0
+        if self.init == False:
+            if self.curr_ticker >= len(tickers) - 1:
+                self.curr_ticker = 0
+            else:
+                self.curr_ticker += 1
         else:
-            self.curr_ticker += 1
+            self.init = False
 
-        print("[Env]: Reset. ticker = ",tickers[self.curr_ticker])
+        print("[Env]: Reset. ticker: ",tickers[self.curr_ticker])
         self.budget = self.initial_budget
         self.ticker_done = False
         init_lri()
@@ -209,9 +217,18 @@ class ChartTradingEnv(gym.Env):
 
         return self.get_next_row_obs()
     
-    ### 여기부터는 Test함수
+    ### Test용 함수
     def set_curr_to_timestamp(self, timestamp):
         while( self.datas.data_1h.loc[self.curr, 'time'] < timestamp ):
             # print(self.datas.data_1h.loc[self.curr, 'time'])
             self.curr += 1
         return
+    
+
+if __name__ == '__main__':
+    env = ChartTradingEnv(time_steps=0, tickers=tickers, budget=10000)
+    env.reset(test=False)
+    env.reset(test=False)
+    env.reset(test=False)
+    env.get_next_row_obs()
+    env.get_next_row_obs()
