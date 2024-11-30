@@ -3,7 +3,6 @@ import numpy as np
 from tensorflow import keras
 from keras import layers, initializers
 
-
 class Actor:
     def __init__(self, time_steps, state_size, action_dim):
         self.time_steps = time_steps

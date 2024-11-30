@@ -8,7 +8,7 @@ import tensorflow as tf
 import os
 import pandas as pd
 
-DEBUG = False
+DEBUG = True
 TIMEDEBUG = False
 
 LONG_TYPE = 0
@@ -16,6 +16,7 @@ SHORT_TYPE = 1
 ALL_TYPE = 2
 BASE_DIR = parameter.BASE_DIR
 tickers = parameter.tickers
+test_tickers = parameter.test_tickers
 GAMMA = parameter.GAMMA
 BATCH_SIZE = parameter.BATCH_SIZE
 
@@ -53,6 +54,7 @@ class Train:
 
     
     def load_weights(self, path):
+        path = os.path.join(BASE_DIR, path)
         self.TradeAgent.actor.model.load_weights(f"{path}/Trade_actor.weights.h5")
         self.TradeAgent.critic.model.load_weights(f"{path}/Trade_critic.weights.h5")
         if self.agent_type != SHORT_TYPE:
@@ -355,18 +357,19 @@ class Train:
                           " Open: ",info[0]," Close: ",info[1], " Curr: ",info[2]," Budget: ",self.env.budget)
                 # State 갱신
                 state = next_state
+                time += 1
                 # reward None으로 인해 ticker가 끝에 다다를 수 도 있다.
                 if ticker_done == True:
                     break
             # Test 결과 저장하기
             test_reward_txt = os.path.join(BASE_DIR, "save_weights/test_reward.txt")
             with open(test_reward_txt, 'a') as f:
-                f.write(f"Ep{ep} ticker: {tickers[self.env.curr_ticker]}, Budget: {self.env.budget},"+
-                         " LowB: {lowest_budget}, HigiB: {highest_budget}\n")
+                f.write(f"Ep{ep} ticker: {test_tickers[self.env.curr_ticker]}, Budget: {self.env.budget},"+
+                         f" LowB: {lowest_budget}, HigiB: {highest_budget}\n")
             # 거래 info 저장하기
             df = pd.DataFrame(info_list, columns=['open', 'close', 'end', 'start', 'budget', 'percent','position'])
             print(df)
-            df.to_csv(f"{BASE_DIR}/save_weights/{tickers[self.env.curr_ticker]}_test_result.csv")
+            df.to_csv(f"{BASE_DIR}/save_weights/{test_tickers[self.env.curr_ticker]}_test_result.csv")
 
         print("Test Finished")
 
@@ -464,9 +467,9 @@ class Train:
             return obs, 0, ticker_done, info
         
 def test():
-    agent = Train(time_steps=0, agent_type=ALL_TYPE)
-    # agent.load_weights("save_weights/a2c_17")
-    # agent.test(len(tickers))
+    agent = Train(time_steps=0, agent_type=ALL_TYPE, tickers=parameter.test_tickers, budget=10000)
+    agent.load_weights("save_weights/a2c_17")
+    agent.test(len(test_tickers), timestamp=parameter.TEST_TIMESTAMP)
     
 def train():
     max_episode_num = 200
@@ -475,4 +478,4 @@ def train():
     agent.train(max_episode_num, 0)
 
 if __name__=='__main__':
-    train()
+    test()

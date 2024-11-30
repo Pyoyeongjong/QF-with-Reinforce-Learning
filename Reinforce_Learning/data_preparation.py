@@ -32,7 +32,7 @@ tickers = parameter.tickers
 # Scaler
 scaler = MinMaxScaler()
 # API 파일 경로
-api_key_file_path = os.path.join(BASE_DIR, "api.txt")
+api_key_file_path = os.path.join(BASE_DIR, "users/api.txt")
 # 클라이언트 변수
 _client = None
 
@@ -211,8 +211,12 @@ if __name__ == '__main__':
     get_usdt_balance(_client, True)
 
     # for ticker in tickers:
-    #     get_all_candle_datas_to_csv(ticker, "1 Jan, 2017", "31 Jul, 2024")
+    #     get_all_candle_datas_to_csv(ticker, "1 Jan, 2017", "31 Oct, 2024")
     get_subdatas(tickers)
+
+    for ticker in test_tickers:
+        get_all_candle_datas_to_csv(ticker, "1 Jan, 2017", "31 Oct, 2024")
+    get_subdatas(test_tickers)
 
 
     

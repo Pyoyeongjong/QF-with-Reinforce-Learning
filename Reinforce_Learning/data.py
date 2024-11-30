@@ -57,10 +57,7 @@ class Data:
 
     def load_data(self, ticker, test=False):
         start = time.time()
-        if test:
-            path = os.path.join(BASE_DIR, 'candle_datas_test')
-        else:
-            path = os.path.join(BASE_DIR, 'candles_sub_data')
+        path = os.path.join(BASE_DIR, 'candles_sub_data')
         for tf in self.time_frames:
             file_path = os.path.join(path, f"{ticker}_{tf}_sub.csv")
             if os.path.exists(file_path):
@@ -83,6 +80,29 @@ class Data:
             path = os.path.join(BASE_DIR, "var_table")
             file_path = os.path.join(path, f"{ticker}_{attr}_var_table.csv")
             var_series.to_csv(file_path)
+
+    def make_mean_var_table(self, ticker): # 0이 mean, 1이 variance
+
+        self.load_data(ticker)
+
+        for attr in self.data_attributes:
+            data = getattr(self, attr)
+            data.replace([np.inf, -np.inf], 0, inplace=True)
+
+            mean_list = []
+            var_list = []
+
+            for col in z_cols:
+                mean = data[col].mean()
+                var = data[col].var()
+                mean_list.append(mean)
+                var_list.append(var)
+
+            mean_var_list = [mean_list, var_list]
+            df = pd.DataFrame(mean_var_list, columns=z_cols)
+            path = os.path.join(BASE_DIR, "var_table")
+            file_path = os.path.join(path, f"{ticker}_{attr}_var_table.csv")
+            df.to_csv(file_path)
 
     # def load_data_1m(ticker):
     #     file_list = []
@@ -122,7 +142,7 @@ class Data:
             file_path = os.path.join(path, f"{ticker}_{attr}_var_table.csv")
             if os.path.exists(file_path):
                 data = pd.read_csv(file_path).drop(columns='Unnamed: 0').dropna().apply(pd.to_numeric)
-                setattr(self, attr, data)
+                setattr(self, f"{attr}_var", data)
             else:
                 print(f"[Error]: File {file_path} does not exist.")
 
@@ -145,7 +165,7 @@ class Data:
             data_var = getattr(self, attr+"_var")
             data.replace([np.inf, -np.inf], 0, inplace=True)
             for col in z_cols:
-                std_dev = math.sqrt(data_var[col].iloc[0])
+                std_dev = math.sqrt(data_var[col].iloc[1])
                 data[col] = data[col] / std_dev
 
     def load_obs_data(self):
@@ -191,8 +211,8 @@ class Data:
 
 if __name__ == '__main__':
     data = Data()
-    data.load_train_data("BTCUSDT")
-    data.load_train_data("ETHUSDT")
+    for ticker in parameter.test_tickers:
+        data.make_mean_var_table(ticker)
 
 
 

@@ -81,7 +81,8 @@ class ChartTradingEnv(gym.Env):
         timestamp = [604800, 86400, 14400, 3600, 900, 300, 60] * 1000
         ohlcv_list = ['open', 'high', 'low', 'close', 'volume'] # OHLCV
         datas = self.datas.get_obs_datas()
-        curr_time = self.datas.data_15m.loc[self.curr, 'time'] # 1m
+        
+        curr_time = self.datas.data_1h.loc[self.curr, 'time'] # 1m
         rows_list = []
 
         for data_loc, data in enumerate(datas):
@@ -203,15 +204,20 @@ class ChartTradingEnv(gym.Env):
         else:
             self.init = False
 
-        print("[Env]: Reset. ticker: ",tickers[self.curr_ticker])
+        if test:
+            print("[Env]: Reset. ticker: ",test_tickers[self.curr_ticker])
+        else:
+            print("[Env]: Reset. ticker: ",tickers[self.curr_ticker])
+
         self.budget = self.initial_budget
         self.ticker_done = False
         init_lri()
 
         if test:
-            self.datas.load_test_data(tickers[self.curr_ticker])
+            self.datas.load_test_data(test_tickers[self.curr_ticker])
         else:
             self.datas.load_train_data(tickers[self.curr_ticker])
+
         self.curr = 0
         self.lstm_obs = deque(maxlen=self.time_steps)
 
