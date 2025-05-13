@@ -1,9 +1,9 @@
 ## QF-with-Reinforce-Learning
 
-Qauntitive Finance 2차 개발
+Qauntitive Finance Phase 2 Development
 
-### 1. 강화학습 환경 조성
+### 1. Building a Reinforcement Learning Environment
 
-### 2. 파일 정리 및 최적화
+### 2. File Organization and Optimization
 
-### 3. 여러 사용자를 위한 웹페이지 개발
+### 3. Webpage Development for Multiple Users
